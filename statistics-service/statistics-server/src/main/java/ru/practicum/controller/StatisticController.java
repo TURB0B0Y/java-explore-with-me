@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.dto.CreateHitDTO;
 import ru.practicum.dto.StatisticDTO;
-import ru.practicum.envirnoment.Envirnoments;
+import ru.practicum.envirnoment.Environments;
 import ru.practicum.service.StatisticService;
 
 import javax.validation.Valid;
@@ -29,8 +29,8 @@ public class StatisticController {
     }
 
     @GetMapping("/stats")
-    public List<StatisticDTO> getStats(@RequestParam @DateTimeFormat(pattern = Envirnoments.DATE_FORMAT) LocalDateTime start,
-                                       @RequestParam @DateTimeFormat(pattern = Envirnoments.DATE_FORMAT) LocalDateTime end,
+    public List<StatisticDTO> getStats(@RequestParam @DateTimeFormat(pattern = Environments.DATE_FORMAT) LocalDateTime start,
+                                       @RequestParam @DateTimeFormat(pattern = Environments.DATE_FORMAT) LocalDateTime end,
                                        @RequestParam(required = false) String[] uris,
                                        @RequestParam(defaultValue = "false") boolean unique) {
         log.info("getStats {} {} {} {}", start, end, uris, unique);

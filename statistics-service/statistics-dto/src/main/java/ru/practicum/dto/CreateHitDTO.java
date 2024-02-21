@@ -2,7 +2,7 @@ package ru.practicum.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
-import ru.practicum.envirnoment.Envirnoments;
+import ru.practicum.envirnoment.Environments;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -25,7 +25,7 @@ public class CreateHitDTO {
     private String uri;
 
     @NotNull
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = Envirnoments.DATE_FORMAT)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = Environments.DATE_FORMAT)
     private LocalDateTime timestamp;
 
 }

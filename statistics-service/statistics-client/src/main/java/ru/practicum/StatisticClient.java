@@ -10,7 +10,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.dto.CreateHitDTO;
 import ru.practicum.dto.StatisticDTO;
-import ru.practicum.envirnoment.Envirnoments;
+import ru.practicum.envirnoment.Environments;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -22,7 +22,7 @@ import java.util.Objects;
 @Service
 public class StatisticClient {
 
-    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Envirnoments.DATE_FORMAT);
+    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
     private final RestTemplate rest;
 
     public StatisticClient(String serverUrl, RestTemplateBuilder builder) {
