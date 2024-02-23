@@ -6,6 +6,6 @@ public interface StatisticView {
 
     String getUri();
 
-    Long getHits();
+    Integer getHits();
 
 }
