@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
 
-    private static DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
+    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
     public static final String EVENT_NOT_FOUND_TEMPLATE = "Event with id=%s was not found";
 
     private final EventRepository eventRepository;
@@ -123,22 +123,22 @@ public class EventServiceImpl implements EventService {
                         && eventFilter.getRangeStart().isAfter(eventFilter.getRangeEnd())
         ) throw new APIException("range start after range end");
         Pageable pageable;
-        if (Objects.nonNull(eventFilter.getSort())) {
+        if (Objects.nonNull(eventFilter.getSort()) && eventFilter.getSort() == EventSort.EVENT_DATE) {
             pageable = PageRequest.of(
                     eventFilter.getFrom() / eventFilter.getSize(),
                     eventFilter.getSize(),
-                    Sort.by(eventFilter.getSort().getColumn())
+                    Sort.by("eventDate")
             );
         } else {
             pageable = PageRequest.of(eventFilter.getFrom() / eventFilter.getSize(), eventFilter.getSize());
         }
         List<Event> events = eventRepository.findAll(EventSpecification.isOnlyTheFilter(eventFilter), pageable).getContent();
         events = new LinkedList<>(events);
-        if (Objects.nonNull(eventFilter.getSort()) && eventFilter.getSort().equals(EventSort.EVENT_DATE)) {
-            final Map<Integer, Integer> views = getViews(events);
+        final Map<Integer, Integer> views = getViews(events);
+        if (Objects.nonNull(eventFilter.getSort()) && eventFilter.getSort().equals(EventSort.VIEWS)) {
             events.sort(Comparator.comparingInt(o -> views.getOrDefault(o.getId(), 0)));
         }
-        return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
+        return events.stream().map(e -> EventMapper.toShortDto(e, views.getOrDefault(e.getId(), 0))).collect(Collectors.toList());
     }
 
     @Override
@@ -146,7 +146,8 @@ public class EventServiceImpl implements EventService {
     public List<ShortEventDTO> getAll(int userId, PageFilter pageFilter) {
         Pageable pageable = PageRequest.of(pageFilter.getFrom() / pageFilter.getSize(), pageFilter.getSize());
         List<Event> events = eventRepository.findAllByInitiatorId(userId, pageable);
-        return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
+        Map<Integer, Integer> views = getViews(events);
+        return events.stream().map(e -> EventMapper.toShortDto(e, views.getOrDefault(e.getId(), 0))).collect(Collectors.toList());
     }
 
     @Override

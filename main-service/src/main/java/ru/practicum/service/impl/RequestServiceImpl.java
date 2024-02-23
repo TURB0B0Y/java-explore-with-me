@@ -43,8 +43,9 @@ public class RequestServiceImpl implements RequestService {
     public UpdateRequestResultDTO updateRequests(int userId, int eventId, UpdateRequestDTO dto) {
         Event event = getEventById(eventId);
         long eventConfirmedRequests = requestRepository.getEventRequestCountByStatus(eventId, StatusRequest.CONFIRMED);
+        boolean isConfirmed = StatusRequest.CONFIRMED.equals(dto.getStatus());
         if (
-                StatusRequest.CONFIRMED.equals(dto.getStatus()) && event.getParticipantLimit() > 0
+                isConfirmed && event.getParticipantLimit() > 0
                         && event.getParticipantLimit() <= eventConfirmedRequests
         ) {
             throw new ConflictException("The participant limit has been reached");
@@ -56,12 +57,14 @@ public class RequestServiceImpl implements RequestService {
 
         for (Request request : requests) {
             if (
-                    StatusRequest.CONFIRMED.equals(dto.getStatus())
-                            && (event.getParticipantLimit() < 1 || event.getParticipantLimit() > eventConfirmedRequests++)
-            )
+                    isConfirmed
+                            && (event.getParticipantLimit() < 1 || event.getParticipantLimit() > eventConfirmedRequests)
+            ) {
                 request.setStatus(StatusRequest.CONFIRMED);
-            else
+                eventConfirmedRequests++;
+            } else {
                 request.setStatus(StatusRequest.REJECTED);
+            }
         }
         UpdateRequestResultDTO.UpdateRequestResultDTOBuilder builder = UpdateRequestResultDTO.builder();
         for (Request request : requests) {

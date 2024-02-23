@@ -41,7 +41,7 @@ public class EventMapper {
         return dto;
     }
 
-    public static ShortEventDTO toShortDto(Event event) {
+    public static ShortEventDTO toShortDto(Event event, int views) {
         ShortEventDTO dto = new ShortEventDTO();
         dto.setId(event.getId());
         dto.setAnnotation(event.getAnnotation());
@@ -50,6 +50,7 @@ public class EventMapper {
         dto.setInitiator(UserMapper.toDto(event.getInitiator()));
         dto.setPaid(event.getPaid());
         dto.setTitle(event.getTitle());
+        dto.setViews(views);
         return dto;
     }
 

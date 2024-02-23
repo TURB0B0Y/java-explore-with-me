@@ -5,9 +5,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.StatisticClient;
+import ru.practicum.dto.StatisticDTO;
 import ru.practicum.dto.compilation.CompilationDTO;
 import ru.practicum.dto.compilation.CreateCompilationDTO;
 import ru.practicum.dto.compilation.UpdateCompilationDTO;
+import ru.practicum.environment.Environments;
 import ru.practicum.exception.NotFoundException;
 import ru.practicum.filter.PageFilter;
 import ru.practicum.mapper.CompilationMapper;
@@ -17,17 +20,20 @@ import ru.practicum.repository.CompilationRepository;
 import ru.practicum.repository.EventRepository;
 import ru.practicum.service.CompilationService;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CompilationServiceImpl implements CompilationService {
 
+    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
+
     private final CompilationRepository compilationRepository;
     private final EventRepository eventRepository;
+    private final StatisticClient statisticClient;
 
     @Override
     @Transactional
@@ -39,7 +45,8 @@ public class CompilationServiceImpl implements CompilationService {
         newCompilation.setTitle(dto.getTitle());
         newCompilation.setPinned(dto.getPinned());
         newCompilation.setEvents(events);
-        return CompilationMapper.toDto(compilationRepository.save(newCompilation));
+        Map<Integer, Integer> views = getViews(events);
+        return CompilationMapper.toDto(compilationRepository.save(newCompilation), views);
     }
 
     @Override
@@ -58,7 +65,8 @@ public class CompilationServiceImpl implements CompilationService {
         compilationFromDB.setEvents(events);
         compilationFromDB.setTitle(dto.getTitle());
         compilationFromDB.setPinned(dto.getPinned());
-        return CompilationMapper.toDto(compilationFromDB);
+        Map<Integer, Integer> views = getViews(events);
+        return CompilationMapper.toDto(compilationFromDB, views);
     }
 
     @Override
@@ -70,13 +78,20 @@ public class CompilationServiceImpl implements CompilationService {
             res = compilationRepository.findAllByPinned(pinned, pageable);
         else
             res = compilationRepository.findAll(pageable).getContent();
-        return res.stream().map(CompilationMapper::toDto).collect(Collectors.toList());
+        List<Event> events = res.stream().flatMap(c -> c.getEvents()
+                .stream())
+                .collect(Collectors.toList());
+        Map<Integer, Integer> views = getViews(events);
+        return res.stream().map(c -> CompilationMapper.toDto(c, views))
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public CompilationDTO getCompilationById(int compilationId) {
-        return CompilationMapper.toDto(getById(compilationId));
+        Compilation compilation = getById(compilationId);
+        Map<Integer, Integer> views = getViews(compilation.getEvents());
+        return CompilationMapper.toDto(compilation, views);
     }
 
     private List<Event> findAllEventByIds(List<Integer> eventIds) {
@@ -86,6 +101,25 @@ public class CompilationServiceImpl implements CompilationService {
     private Compilation getById(int compilationId) {
         return compilationRepository.findById(compilationId)
                 .orElseThrow(() -> new NotFoundException("Compilation with id=%s was not found", compilationId));
+    }
+
+    private Map<Integer, Integer> getViews(List<Event> events) {
+        String[] uris = events.stream().map(event -> "/events/" + event.getId()).toArray(String[]::new);
+        List<StatisticDTO> stats = statisticClient.getStats(
+                LocalDateTime.now().minusHours(5).format(DF),
+                LocalDateTime.now().plusHours(5).format(DF),
+                uris,
+                true
+        ).getBody();
+        if (stats == null || stats.isEmpty())
+            return Collections.emptyMap();
+        Map<Integer, Integer> views = new HashMap<>();
+        for (StatisticDTO state : stats) {
+            String eventIdStr = state.getUri().substring(state.getUri().lastIndexOf('/') + 1);
+            int eventId = Integer.parseInt(eventIdStr);
+            views.put(eventId, state.getHits());
+        }
+        return views;
     }
 
 }
