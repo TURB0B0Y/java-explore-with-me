@@ -1,4 +1,4 @@
-package ru.practicum.envirnoment;
+package ru.practicum.environment;
 
 public class Environments {
 
