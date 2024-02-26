@@ -2,6 +2,7 @@ package ru.practicum.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -41,9 +42,12 @@ public class CustomExceptionHandler {
         return Map.of(ERROR_KEY, e.getMessage());
     }
 
-    @ExceptionHandler(NotFoundException.class)
+    @ExceptionHandler({
+            NotFoundException.class,
+            EmptyResultDataAccessException.class
+    })
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, String> handle(NotFoundException e) {
+    public Map<String, String> handleNotFound(Exception e) {
         return Map.of(ERROR_KEY, e.getMessage());
     }
 
