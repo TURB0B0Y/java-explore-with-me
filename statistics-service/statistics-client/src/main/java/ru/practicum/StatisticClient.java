@@ -5,24 +5,18 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.dto.CreateHitDTO;
 import ru.practicum.dto.StatisticDTO;
-import ru.practicum.envirnoment.Environments;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-@Service
 public class StatisticClient {
 
-    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
     private final RestTemplate rest;
 
     public StatisticClient(String serverUrl, RestTemplateBuilder builder) {
@@ -32,10 +26,10 @@ public class StatisticClient {
                 .build();
     }
 
-    public ResponseEntity<List<StatisticDTO>> getStats(LocalDateTime start, LocalDateTime end, String[] uris, Boolean unique) {
+    public ResponseEntity<List<StatisticDTO>> getStats(String start, String end, String[] uris, Boolean unique) {
         Map<String, Object> params = new HashMap<>();
-        params.put("start", DF.format(start));
-        params.put("end", DF.format(end));
+        params.put("start", start);
+        params.put("end", end);
         params.put("uris", uris);
         params.put("unique", unique);
         return makeAndSendRequest(
