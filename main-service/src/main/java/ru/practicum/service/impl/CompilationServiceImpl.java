@@ -6,13 +6,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.StatisticClient;
-import ru.practicum.dto.StatisticDTO;
 import ru.practicum.dto.compilation.CompilationDTO;
 import ru.practicum.dto.compilation.CreateCompilationDTO;
 import ru.practicum.dto.compilation.UpdateCompilationDTO;
-import ru.practicum.environment.Environments;
 import ru.practicum.exception.NotFoundException;
 import ru.practicum.filter.PageFilter;
+import ru.practicum.helper.ViewsHelper;
 import ru.practicum.mapper.CompilationMapper;
 import ru.practicum.model.Compilation;
 import ru.practicum.model.Event;
@@ -20,16 +19,15 @@ import ru.practicum.repository.CompilationRepository;
 import ru.practicum.repository.EventRepository;
 import ru.practicum.service.CompilationService;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CompilationServiceImpl implements CompilationService {
-
-    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
 
     private final CompilationRepository compilationRepository;
     private final EventRepository eventRepository;
@@ -45,7 +43,7 @@ public class CompilationServiceImpl implements CompilationService {
         newCompilation.setTitle(dto.getTitle());
         newCompilation.setPinned(dto.getPinned());
         newCompilation.setEvents(events);
-        Map<Integer, Integer> views = getViews(events);
+        Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         return CompilationMapper.toDto(compilationRepository.save(newCompilation), views);
     }
 
@@ -65,7 +63,7 @@ public class CompilationServiceImpl implements CompilationService {
         compilationFromDB.setEvents(events);
         compilationFromDB.setTitle(dto.getTitle());
         compilationFromDB.setPinned(dto.getPinned());
-        Map<Integer, Integer> views = getViews(events);
+        Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         return CompilationMapper.toDto(compilationFromDB, views);
     }
 
@@ -81,7 +79,7 @@ public class CompilationServiceImpl implements CompilationService {
         List<Event> events = res.stream().flatMap(c -> c.getEvents()
                 .stream())
                 .collect(Collectors.toList());
-        Map<Integer, Integer> views = getViews(events);
+        Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         return res.stream().map(c -> CompilationMapper.toDto(c, views))
                 .collect(Collectors.toList());
     }
@@ -90,7 +88,7 @@ public class CompilationServiceImpl implements CompilationService {
     @Transactional(readOnly = true)
     public CompilationDTO getCompilationById(int compilationId) {
         Compilation compilation = getById(compilationId);
-        Map<Integer, Integer> views = getViews(compilation.getEvents());
+        Map<Integer, Integer> views = ViewsHelper.getViews(compilation.getEvents(), statisticClient);
         return CompilationMapper.toDto(compilation, views);
     }
 
@@ -101,25 +99,6 @@ public class CompilationServiceImpl implements CompilationService {
     private Compilation getById(int compilationId) {
         return compilationRepository.findById(compilationId)
                 .orElseThrow(() -> new NotFoundException("Compilation with id=%s was not found", compilationId));
-    }
-
-    private Map<Integer, Integer> getViews(List<Event> events) {
-        String[] uris = events.stream().map(event -> "/events/" + event.getId()).toArray(String[]::new);
-        List<StatisticDTO> stats = statisticClient.getStats(
-                LocalDateTime.now().minusHours(5).format(DF),
-                LocalDateTime.now().plusHours(5).format(DF),
-                uris,
-                true
-        ).getBody();
-        if (stats == null || stats.isEmpty())
-            return Collections.emptyMap();
-        Map<Integer, Integer> views = new HashMap<>();
-        for (StatisticDTO state : stats) {
-            String eventIdStr = state.getUri().substring(state.getUri().lastIndexOf('/') + 1);
-            int eventId = Integer.parseInt(eventIdStr);
-            views.put(eventId, state.getHits());
-        }
-        return views;
     }
 
 }

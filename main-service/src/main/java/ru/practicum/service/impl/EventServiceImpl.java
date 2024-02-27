@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.StatisticClient;
 import ru.practicum.dto.CreateHitDTO;
-import ru.practicum.dto.StatisticDTO;
 import ru.practicum.dto.event.CreateEventDTO;
 import ru.practicum.dto.event.EventDTO;
 import ru.practicum.dto.event.ShortEventDTO;
@@ -17,13 +16,13 @@ import ru.practicum.enums.EventSort;
 import ru.practicum.enums.EventState;
 import ru.practicum.enums.StatusRequest;
 import ru.practicum.enums.UpdateEventState;
-import ru.practicum.environment.Environments;
 import ru.practicum.exception.APIException;
 import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.NotFoundException;
 import ru.practicum.filter.AdminEventFilter;
 import ru.practicum.filter.EventFilter;
 import ru.practicum.filter.PageFilter;
+import ru.practicum.helper.ViewsHelper;
 import ru.practicum.mapper.EventMapper;
 import ru.practicum.mapper.LocationMapper;
 import ru.practicum.model.Category;
@@ -40,7 +39,6 @@ import ru.practicum.view.EventRequestsView;
 
 import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,7 +46,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
 
-    private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern(Environments.DATE_FORMAT);
     public static final String EVENT_NOT_FOUND_TEMPLATE = "Event with id=%s was not found";
 
     private final EventRepository eventRepository;
@@ -134,7 +131,7 @@ public class EventServiceImpl implements EventService {
         }
         List<Event> events = eventRepository.findAll(EventSpecification.isOnlyTheFilter(eventFilter), pageable).getContent();
         events = new LinkedList<>(events);
-        final Map<Integer, Integer> views = getViews(events);
+        final Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         if (Objects.nonNull(eventFilter.getSort()) && eventFilter.getSort().equals(EventSort.VIEWS)) {
             events.sort(Comparator.comparingInt(o -> views.getOrDefault(o.getId(), 0)));
         }
@@ -146,7 +143,7 @@ public class EventServiceImpl implements EventService {
     public List<ShortEventDTO> getAll(int userId, PageFilter pageFilter) {
         Pageable pageable = PageRequest.of(pageFilter.getFrom() / pageFilter.getSize(), pageFilter.getSize());
         List<Event> events = eventRepository.findAllByInitiatorId(userId, pageable);
-        Map<Integer, Integer> views = getViews(events);
+        Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         return events.stream().map(e -> EventMapper.toShortDto(e, views.getOrDefault(e.getId(), 0))).collect(Collectors.toList());
     }
 
@@ -197,32 +194,13 @@ public class EventServiceImpl implements EventService {
     }
 
     private List<EventDTO> toDto(List<Event> events) {
-        Map<Integer, Integer> views = getViews(events);
+        Map<Integer, Integer> views = ViewsHelper.getViews(events, statisticClient);
         Map<Integer, Integer> confirmedRequests = getConfirmedRequests(events);
         return events.stream().map(event -> EventMapper.toDto(
                 event,
                 views.getOrDefault(event.getId(), 0),
                 confirmedRequests.getOrDefault(event.getId(), 0)
         )).collect(Collectors.toList());
-    }
-
-    private Map<Integer, Integer> getViews(List<Event> events) {
-        String[] uris = events.stream().map(event -> "/events/" + event.getId()).toArray(String[]::new);
-        List<StatisticDTO> stats = statisticClient.getStats(
-                LocalDateTime.now().minusHours(5).format(DF),
-                LocalDateTime.now().plusHours(5).format(DF),
-                uris,
-                true
-        ).getBody();
-        if (stats == null || stats.isEmpty())
-            return Collections.emptyMap();
-        Map<Integer, Integer> views = new HashMap<>();
-        for (StatisticDTO state : stats) {
-            String eventIdStr = state.getUri().substring(state.getUri().lastIndexOf('/') + 1);
-            int eventId = Integer.parseInt(eventIdStr);
-            views.put(eventId, state.getHits());
-        }
-        return views;
     }
 
     private Map<Integer, Integer> getConfirmedRequests(List<Event> events) {

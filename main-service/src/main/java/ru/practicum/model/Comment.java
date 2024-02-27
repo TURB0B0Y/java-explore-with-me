@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -34,5 +35,9 @@ public class Comment {
     @CreationTimestamp
     @Column(name = "create_date")
     private LocalDateTime created;
+
+    @UpdateTimestamp
+    @Column(name = "update_date")
+    private LocalDateTime updated;
 
 }
